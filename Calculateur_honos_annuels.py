@@ -1,0 +1,58 @@
+import streamlit as st
+import pandas as pd
+
+# Fonction pour calculer les honoraires
+def calcul_honoraires_grille(investissement, paliers):
+    fees = 0
+    for min_, max_, fixe, taux in paliers:
+        if investissement > min_:
+            tranche = min(investissement, max_) - min_
+            fees += fixe + taux * tranche
+        else:
+            break
+    return fees
+
+st.title('Calculateur d\'Honoraires Publicitaires')
+
+# Paramétrage des paliers d'investissement avec tableau
+st.sidebar.header('Paramétrage des Paliers')
+num_paliers = st.sidebar.slider("Nombre de paliers", min_value=4, max_value=8, value=4)
+
+data = {'Investissement Max': [], 'Montant Fixe': [], 'Taux': []}
+previous_max = 0.0
+
+for i in range(num_paliers):
+    st.sidebar.markdown(f"### Palier {i + 1}")
+    max_investissement = st.sidebar.number_input(
+        f"Investissement maximum pour le palier {i + 1}",
+        min_value=previous_max + 0.01, step=1000.0,
+        value=previous_max + 1000.0
+    )
+    fixe = st.sidebar.number_input(f"Montant fixe pour le palier {i + 1}", min_value=0.0, step=1000.0)
+    taux = st.sidebar.number_input(f"Taux pour le palier {i + 1}", min_value=0.0, step=0.05)
+    data['Investissement Max'].append(max_investissement)
+    data['Montant Fixe'].append(fixe)
+    data['Taux'].append(taux)
+    previous_max = max_investissement
+
+paliers = [(0.0, data['Investissement Max'][0], data['Montant Fixe'][0], data['Taux'][0])]
+for i in range(1, num_paliers):
+    paliers.append((data['Investissement Max'][i - 1], data['Investissement Max'][i], data['Montant Fixe'][i], data['Taux'][i]))
+
+df = pd.DataFrame(data)
+st.sidebar.write("Résumé des Paliers :")
+st.sidebar.table(df)
+
+# Saisie des montants d'investissement mensuels
+st.header('Saisie des Montants d\'Investissement Mensuels')
+investissement_mensuel = {}
+for month in range(1, 13):
+    investissement_mensuel[month] = st.number_input(f"Investissement pour le mois {month}", min_value=0.0, step=1000.0, value=0.0)
+
+# Calcul du total annuel des honoraires et du pourcentage de l'investissement
+total_honoraires_annuels = sum(calcul_honoraires_grille(inv, paliers) for inv in investissement_mensuel.values())
+total_investissement_annuel = sum(investissement_mensuel.values())
+pourcentage_honoraires = (total_honoraires_annuels / total_investissement_annuel * 100) if total_investissement_annuel else 0
+
+st.write(f"**Montant total des honoraires annuels :** {total_honoraires_annuels:.2f} €")
+st.write(f"**Pourcentage de l'investissement annuel :** {pourcentage_honoraires:.2f} %")
